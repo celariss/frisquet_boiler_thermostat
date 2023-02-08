@@ -1,0 +1,124 @@
+substitutions:
+  device: frisquet-boiler
+  name: "Frisquet boiler"
+
+esphome:
+  name: ${device}
+
+# I am using a Wemos D1 mini clone
+esp8266:
+  board: nodemcuv2
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  use_address: 192.168.1.220
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${device} Fallback Hotspot"
+    password: !secret ap_password
+
+captive_portal:
+
+external_components:
+  - source: components
+
+logger:
+  # Set baud_rate to 0 to disable logging
+  #baud_rate: 0
+  # Disable use of flash for logs (to expand HW lifespan)
+  esp8266_store_log_strings_in_flash: false
+  level: DEBUG
+  logs:
+    sensor: INFO
+    text_sensor: INFO
+
+sensor:
+  # Sensor that sends uptime (elapsed time since last reboot) to HA
+  - platform: uptime
+    name: Uptime Sensor
+    
+  # Declaration of temperature sensor used by our PID to regulate boiler temperature
+  # NOTE : Please replace <entity_id> value by an existing temperature sensor in your HA setup
+  - platform: homeassistant
+    id: current_temperature
+    entity_id: sensor.living_room_temperature
+    unit_of_measurement: "°C"
+    filters:
+      - filter_out: nan
+      # Setting heartbeat is a way to set pid climate working period
+      # with 30s, the pid climate will compute and send a value to output every 30s
+      - heartbeat: 30s
+      - sliding_window_moving_average:
+          window_size: 3
+          send_every: 1
+
+    # Sensor that sends the boiler setpoint calculated by the PID
+  - platform: pid
+    name: "Boiler Setpoint"
+    climate_id: frisquet_boiler_pid
+    type: RESULT
+
+# The "frisquet_boiler" output sends setpoints (calculated by the PID) 
+# to the actual boiler through a direct wire connection
+# Implementation of this output is given in folder ./components/frisquet_boiler
+output:
+  - platform: frisquet_boiler
+    id: boiler_output # required, do not change
+    pin: D6           # required
+    # "boiler_id" is required, it must be acquired from your Frisquet official remote (see README.md)
+    # It is a 16 bits hexadecimal (example : DA3E)
+    boiler_id: !secret boiler_id
+
+    # init_delai: Delai after boot before sending first message to boiler
+    #             unit: second, default: 120
+    init_delai: 90
+    # repeat_delai: Max duration between 2 messages sent to the boiler
+    #             unit: second, default: 300
+    repeat_delai: 300
+    # new_setpoint_delai: Wait time before sending a new setpoint received from client
+    #             unit: second, default: 5
+    new_setpoint_delai: 5
+    # time_to_death: Delai before stopping the boiler, in case no message are received for a long time
+    #             unit: second, default: 1200
+    time_to_death: 1200
+
+
+# This PID implementation is given by ESPHome
+# NOTE : The pid climate sends a new setpoint to heat_output each time a temperature value is received from sensor
+climate:
+  - platform: pid
+    id: frisquet_boiler_pid
+    name: ${name}
+    sensor: current_temperature
+    # low default temperature for safety, since where is an issue with this component :
+    # each time connection is lost then restored with HA, the component goes back to default, losing previous setpoint value
+    default_target_temperature: 15.5°C
+    heat_output: boiler_output
+    control_parameters:
+      kp: 0.49460
+      ki: 0.000340
+      kd: 0.8794107
+      min_integral: 0
+      max_integral: 0.4
+      output_averaging_samples: 2
+      derivative_averaging_samples: 2
+
+# Enable Home Assistant API through a secured connection
+# => declare the "set_boiler_setpoint" to allow manual setting of boiler setpoint
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+  services:
+    - service: set_boiler_setpoint
+      variables:
+        setpoint: int
+      then:
+        - output.set_level:
+            id: boiler_output
+            level: !lambda 'return setpoint / 100.0;'
