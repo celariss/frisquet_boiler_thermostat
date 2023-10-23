@@ -80,7 +80,8 @@ The wiring is the same, except that the ESP8266 is connected to the antenna conn
 - To understand the wiring, you can refer to https://lastminuteengineers.com/esp8266-dht11-dht22-web-server-tutorial/
 On my D1 mini, using D2 PIN, the wiring is :
 <img src="doc/img/Wiring-DHT22-with-ESP8266-NodeMCU.jpg" alt="Wiring on a D1-mini / NodeMCU board" width="300"/>
-> The sensor is an AM2302 (DHT22 type). It is more acurate than a DHT11, and it supports either 3.3v or 5v.
+
+>The sensor is an AM2302 (DHT22 type). It is more acurate than a DHT11, and it supports either 3.3v or 5v.
 You can use a 10k resistor if sensor readings are eratic or unstable
 - To make the sensor available in Home Assistant, simply use the ESPHome example in folder `./temp-sensor-example`:
   - Rename `secrets_example.yaml` to `secrets.yaml`
