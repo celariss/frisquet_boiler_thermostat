@@ -15,7 +15,7 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-  use_address: 192.168.1.220
+  use_address: !secret static_ip_address
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
