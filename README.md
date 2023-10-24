@@ -35,7 +35,7 @@ This app uses a number of tech and projects to work properly:
 - [Home Assistant] - Open source home automation that puts local control and privacy first
 
 ## Wiring
-> This section is taken from [philippemezzadri]'s project readme.
+> This section is partly inspired from [philippemezzadri]'s project readme.
 
 The ESPHome replaces the original Eco Radio System HF receiver and is connected to the boiler main board through a micro-fit 4 socket.
 
@@ -57,32 +57,33 @@ Defined viewing direction for the connector pin out:
 - Receptable - _rear view_
 - Header - _front view_
 
-**Wiring on a D1-mini / NodeMCU board :**
+**Wiring on a Wemos D1 mini / nodemcuv2 board, using PIN `D6`:**
 
-<img src="doc/img/nodemcu_board.png" alt="Wiring on a D1-mini / NodeMCU board" width="300"/>
+<img src="doc/img/nodemcu_board.png" alt="Wiring on a D1-mini / NodeMCU board" width="400"/>
 
 ## Installation
 - You must get your boiler ID using the frisquet-ERS-decode.ino sketch available here : https://github.com/etimou/frisquet-arduino
->The idea is to capture data frames coming from the official remote, and decode them to extract your boiler ID.
+>The idea is to capture data frames coming from the official Eco Radio System HF remote, and decode them to extract your boiler ID.
 The wiring is the same, except that the ESP8266 is connected to the antenna connector instead of the boiler connector.
-- Rename secrets_example.yaml to secrets.yaml
-- In secrets.yaml file :
+- Rename `secrets_example.yaml` to `secrets.yaml`
+- In `secrets.yaml` file :
   - Fill in the `boiler_id` field with the value you found in previous step
   - Get a random API encryption key from [Native API Component] and update the `api_encryption_key` field
   - Update the value of all the other fields
-- In frisquet_boiler.yaml file :
-  - Indicate your board name in `esp8266/board`. Mine is a Wemos D1 mini clone (ESP8266 12F) known as nodemcuv2
-  - Set `sensor/entity_id` with the id (in home assistant) of the temperature sensor you want to use to drive the boiler with. It is advised to use a sensor that quickly reacts upon any change of room temperature. The most efficient is to build your own (see chapter `Build your own temperature sensor` below)
+- In `frisquet_boiler.yaml` file :
+  - Indicate your board name in `esp8266/board`. Mine is a Wemos D1 mini clone (ESP8266 12F) known as `nodemcuv2`
+  - Set `sensor/entity_id` with the id (in home assistant) of the temperature sensor you want to use to drive the boiler with. It is advised to use a sensor that quickly reacts upon any change of room temperature. The most efficient way is to build your own (see chapter `Build your own temperature sensor` below)
   - In case the control PIN you chose on the ESP board is not D6, then change the value of the `output/pin` field
-- compile and upload the firmware from `frisquet_boiler.yaml` using ESPHome
+- compile `frisquet_boiler.yaml` and upload the firmware using ESPHome
 
 ## Build your own temperature sensor
-- To understand the wiring, you can refer to https://lastminuteengineers.com/esp8266-dht11-dht22-web-server-tutorial/
-On my D1 mini, using D2 PIN, the wiring is :
-<img src="doc/img/Wiring-DHT22-with-ESP8266-NodeMCU.jpg" alt="Wiring on a D1-mini / NodeMCU board" width="300"/>
+- To understand the wiring, you can refer to https://lastminuteengineers.com/esp8266-dht11-dht22-web-server-tutorial/  
+On my D1 mini, using D2 PIN, the wiring is :  
+<img src="doc/img/Wiring-DHT22-with-ESP8266-NodeMCU.jpg" alt="Wiring on a D1-mini / NodeMCU board" width="400"/>
 
 >The sensor is an AM2302 (DHT22 type). It is more acurate than a DHT11, and it supports either 3.3v or 5v.
 You can use a 10k resistor if sensor readings are eratic or unstable
+
 - To make the sensor available in Home Assistant, simply use the ESPHome example in folder `./temp-sensor-example`:
   - Rename `secrets_example.yaml` to `secrets.yaml`
   - Customize values in `esphome.yaml` and `secrets.yaml`
