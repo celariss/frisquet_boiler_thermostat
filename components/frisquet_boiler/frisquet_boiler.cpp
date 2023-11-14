@@ -2,7 +2,6 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-
 #define BOILERMODE_2_STR(mode) (mode == 0 ? "eco" : (mode == 3 ? "comfort" : (mode == 4 ? "frost protection" : "INVALID")))
 #define LOG_TAG "boiler_command"
 
@@ -29,6 +28,7 @@ namespace esphome
       ESP_LOGCONFIG(LOG_TAG, "  Max period between two messages sent to boiler : %d sec", this->repeatDelai_ms / 1000);
       ESP_LOGCONFIG(LOG_TAG, "  Wait time before a new received setpoint is sent to boiler : %d sec", this->newSetpointDelai_ms / 1000);
       ESP_LOGCONFIG(LOG_TAG, "  In case setpoints are not longer received, delai before stopping the boiler (safety): %d sec", this->timeToDeath_ms / 1000);
+      ESP_LOGCONFIG(LOG_TAG, "  Maximum setpoint value: %d", this->maxSetpoint);
     }
 
     void FrisquetBoiler::setup()
@@ -62,7 +62,7 @@ namespace esphome
       if (state >= 0. && state <= 1.)
       {
         int oldSetpoint = this->lastSetpointReceived;
-        this->lastSetpointReceived = state * 100;
+        this->lastSetpointReceived = __min(state * 100, this->maxSetpoint);
         bool bChanged = (oldSetpoint != this->lastSetpointReceived);
         if (!bChanged)
           ESP_LOGD(LOG_TAG, "Received setpoint : %d %% (no change)", this->lastSetpointReceived);

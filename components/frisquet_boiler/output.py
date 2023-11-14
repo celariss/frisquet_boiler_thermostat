@@ -10,6 +10,7 @@ INIT_DELAI         = "init_delai"
 REPEAT_DELAI       = "repeat_delai"
 NEW_SETPOINT_DELAI = "new_setpoint_delai"
 TIME_TO_DEATH      = "time_to_death"
+MAX_SETPOINT       = "max_setpoint"
 
 frisquet_boiler = cg.esphome_ns.namespace('frisquet_boiler')
 FrisquetBoiler = frisquet_boiler.class_('FrisquetBoiler', output.FloatOutput,cg.Component)
@@ -25,6 +26,7 @@ CONFIG_SCHEMA = output.FLOAT_OUTPUT_SCHEMA.extend({
     cv.Optional(REPEAT_DELAI, 300): cv.int_,
     cv.Optional(NEW_SETPOINT_DELAI, 5): cv.int_,
     cv.Optional(TIME_TO_DEATH, 1200): cv.int_,
+    cv.Optional(MAX_SETPOINT, 100): cv.int_,
 }).extend(cv.COMPONENT_SCHEMA)
 
 async def to_code(config):
@@ -49,3 +51,6 @@ async def to_code(config):
 
     value = config[TIME_TO_DEATH]
     cg.add(var.set_time_to_death(value))
+
+    value = config[MAX_SETPOINT]
+    cg.add(var.set_max_setpoint(value))

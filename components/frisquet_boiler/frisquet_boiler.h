@@ -5,6 +5,10 @@
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
 
+#define __min(a,b) (((a) < (b)) ? (a) : (b))
+#define __max(a,b) (((a) > (b)) ? (a) : (b))
+
+
 namespace esphome
 {
     namespace frisquet_boiler
@@ -19,6 +23,7 @@ namespace esphome
             void set_repeat_delai(int value) { this->repeatDelai_ms = value*1000;}
             void set_new_setpoint_delai(int value) { this->newSetpointDelai_ms = value*1000;}
             void set_time_to_death(int value) { this->timeToDeath_ms = value*1000;}
+            void set_max_setpoint(int value) { this->maxSetpoint = __max(0,__min(100,value)); }
 
             void dump_config() override;
             void setup() override;
@@ -50,6 +55,8 @@ namespace esphome
             int newSetpointDelai_ms;
             // Delai (ms) before stopping the boiler, in case of no client activity (no message received)
             int timeToDeath_ms;
+            // Max allowed value for setpoint
+            int maxSetpoint;
 
             // Variables
             ///////////////////////////////

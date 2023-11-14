@@ -86,6 +86,9 @@ output:
     # time_to_death: Delai before stopping the boiler, in case no message are received for a long time
     #             unit: second, default: 1200
     time_to_death: 1200
+    # max_setpoint: maximum setpoint value to send to the boiler
+    #         range: [0, 100], default : 100
+    max_setpoint: 100
 
 
 # This PID implementation is given by ESPHome
