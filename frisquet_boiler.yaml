@@ -1,13 +1,16 @@
 substitutions:
   device: frisquet-boiler
-  name: "Frisquet boiler"
+  name: "Frisquet Boiler"
+  prefix: "Frisquet "
 
 esphome:
   name: ${device}
+  friendly_name: ${name}
 
 # I am using a Wemos D1 mini clone
 esp8266:
   board: nodemcuv2
+  #restore_from_flash: True
 
 ota:
   password: !secret ota_password
@@ -37,12 +40,47 @@ logger:
     sensor: INFO
     text_sensor: INFO
 
+button:
+  # Add a "restart" button in HA device configuration page
+  - platform: restart
+    name: "Reboot device"
+
+switch:
+  # Add a state button in HA device configuration page
+  - platform: template
+    name: "State Control"
+    id: state_control
+    restore_mode: RESTORE_DEFAULT_ON
+    lambda: |-
+      if (id(boiler_output).get_enabled_state()) {
+        return true;
+      } else {
+        return false;
+      }
+    turn_on_action:
+      - lambda: id(boiler_output).set_control_state(true);
+    turn_off_action:
+      - lambda: id(boiler_output).set_control_state(false);
+
+number:
+  # Max boiler setpoint configuration variable visible in home assistant
+  - platform: template
+    name: "Max Setpoint"
+    id: max_setpoint
+    icon: mdi:arrow-collapse-up
+    optimistic: true
+    min_value: 0
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    restore_value: true
+    initial_value: 100
+    set_action:
+      then:
+        - lambda: id(boiler_output).set_max_setpoint(x);
+
 sensor:
-  # Sensor that sends uptime (elapsed time since last reboot) to HA
-  - platform: uptime
-    name: Uptime Sensor
-    
-  # Declaration of temperature sensor used by our PID to regulate boiler temperature
+  # Declaration of temperature sensor used by our PID climate to regulate boiler temperature
   # NOTE : Please replace <entity_id> value by an existing temperature sensor in your HA setup
   - platform: homeassistant
     id: current_temperature
@@ -56,13 +94,38 @@ sensor:
       - sliding_window_moving_average:
           window_size: 3
           send_every: 1
+  
+  # Sensor that sends uptime (elapsed time since last reboot) to HA
+  - platform: uptime
+    name: Uptime Sensor
 
-    # Sensor that sends the boiler setpoint calculated by the PID
+  # Sensor that sends the current actual boiler setpoint
+  - platform: template
+    name: "Actual Setpoint"
+    unit_of_measurement: "%"
+    icon: mdi:water-boiler
+    lambda: return id(boiler_output).get_current_setpoint();
+
+    # Sensor that sends the current setpoint calculated by the PID
   - platform: pid
-    name: "Boiler Setpoint"
-    climate_id: frisquet_boiler_pid
+    name: "PID result"
+    climate_id: boiler_pid
     type: RESULT
 
+    # Sensors that send the current PID terms
+  - platform: pid
+    name: "PID Tp"
+    climate_id: boiler_pid
+    type: PROPORTIONAL
+  - platform: pid
+    name: "PID Td"
+    climate_id: boiler_pid
+    type: DERIVATIVE
+  - platform: pid
+    name: "PID Ti"
+    climate_id: boiler_pid
+    type: INTEGRAL
+ 
 # The "frisquet_boiler" output sends setpoints (calculated by the PID) 
 # to the actual boiler through a direct wire connection
 # Implementation of this output is given in folder ./components/frisquet_boiler
@@ -88,40 +151,32 @@ output:
     time_to_death: 1200
     # max_setpoint: maximum setpoint value to send to the boiler
     #         range: [0, 100], default : 100
-    max_setpoint: 100
+    #max_setpoint: 100
 
 
 # This PID implementation is given by ESPHome
 # NOTE : The pid climate sends a new setpoint to heat_output each time a temperature value is received from sensor
 climate:
   - platform: pid
-    id: frisquet_boiler_pid
-    name: ${name}
+    id: boiler_pid
+    name: "PID Climate"
     sensor: current_temperature
     # low default temperature for safety, since where is an issue with this component :
     # each time connection is lost then restored with HA, the component goes back to default, losing previous setpoint value
     default_target_temperature: 15.5°C
     heat_output: boiler_output
     control_parameters:
-      kp: 0.49460
-      ki: 0.000340
-      kd: 0.8794107
-      min_integral: 0
-      max_integral: 0.4
+      kp: 0.5
+      ki: 0.0004
+      kd: 30.0
+      min_integral: 0   # It's a boiler, not a cooler : We don't want to let the T° go under the setpoint
+      max_integral: 0.8 # to avoid overshoot
       output_averaging_samples: 2
-      derivative_averaging_samples: 2
+      derivative_averaging_samples: 6
+      #starting_integral_term: 0.36
 
 # Enable Home Assistant API through a secured connection
 # => declare the "set_boiler_setpoint" to allow manual setting of boiler setpoint
 api:
   encryption:
     key: !secret api_encryption_key
-
-  services:
-    - service: set_boiler_setpoint
-      variables:
-        setpoint: int
-      then:
-        - output.set_level:
-            id: boiler_output
-            level: !lambda 'return setpoint / 100.0;'

@@ -5,6 +5,9 @@
 #define BOILERMODE_2_STR(mode) (mode == 0 ? "eco" : (mode == 3 ? "comfort" : (mode == 4 ? "frost protection" : "INVALID")))
 #define LOG_TAG "boiler_command"
 
+extern esphome::template_::TemplateNumber *max_setpoint;
+extern esphome::template_::TemplateSwitch *control_state;
+
 namespace esphome
 {
   namespace frisquet_boiler
@@ -41,6 +44,7 @@ namespace esphome
       this->lastSetpointReceived = 0;
       this->bReceivedNewSetpoint = false;
       this->boilerMode = 3;
+      this->enabledState = true;
 
       this->bReceivedNewSetpoint = false;
       this->lastTimeReceivedSetpoint = millis();
@@ -49,6 +53,17 @@ namespace esphome
       this->lastTimeSent = millis();
       this->firstMsgSent = false;
       this->bitstuff_counter = 0;
+
+      // Restoring data read from flash
+      this->set_max_setpoint(max_setpoint->state);
+      //this->set_control_state(control_state->state);
+    }
+
+    void FrisquetBoiler::set_control_state(bool value)
+    {
+      this->enabledState = value;
+      this->lastTimeReceivedSetpoint = 0;
+      this->bReceivedNewSetpoint = true;
     }
 
     void FrisquetBoiler::set_boiler_id_in_message()
@@ -62,12 +77,13 @@ namespace esphome
       if (state >= 0. && state <= 1.)
       {
         int oldSetpoint = this->lastSetpointReceived;
-        this->lastSetpointReceived = __min(state * 100, this->maxSetpoint);
+        int newSetpoint = int(state * 100);
+        this->lastSetpointReceived = __min(newSetpoint, this->maxSetpoint);
         bool bChanged = (oldSetpoint != this->lastSetpointReceived);
-        if (!bChanged)
-          ESP_LOGD(LOG_TAG, "Received setpoint : %d %% (no change)", this->lastSetpointReceived);
+        if (newSetpoint != this->lastSetpointReceived)
+          ESP_LOGD(LOG_TAG, "Received setpoint : %d %% => %d %% (%s)", newSetpoint, this->lastSetpointReceived, bChanged?"new":"no change");
         else
-          ESP_LOGI(LOG_TAG, "Received new boiler setpoint : %d %%", this->lastSetpointReceived);
+          ESP_LOGD(LOG_TAG, "Received setpoint : %d %% (%s)", this->lastSetpointReceived, bChanged?"new":"no change");
         this->lastTimeReceivedSetpoint = millis();
         if (this->isMqttClientDead)
         {
@@ -117,13 +133,17 @@ namespace esphome
 
     void FrisquetBoiler::sendMessagetoBoiler()
     {
-      ESP_LOGI(LOG_TAG, "Sending frames to boiler for mode<%s> and setpoint<%d>", BOILERMODE_2_STR(boilerMode), lastSetpointReceived);
+      int setpoint = this->enabledState ? this->lastSetpointReceived : 0;
+      if (this->enabledState)
+        ESP_LOGI(LOG_TAG, "Sending frames to boiler for mode<%s> and setpoint<%d>", BOILERMODE_2_STR(boilerMode), setpoint);
+      else
+        ESP_LOGI(LOG_TAG, "[enabledState=false] Sending frames to boiler for mode<%s> and setpoint<%d>", BOILERMODE_2_STR(boilerMode), setpoint);
       for (uint8_t f_idx = 0; f_idx < 3; f_idx++)
       {
         previousBitSent = 0;
         boilerFrame[8] = f_idx;
         boilerFrame[9] = (f_idx == 2) ? boilerMode : boilerMode + 0x80;
-        boilerFrame[10] = lastSetpointReceived;
+        boilerFrame[10] = setpoint;
 
         int checksum = 0;
         for (uint8_t i = 3; i < 12; i++)

@@ -4,6 +4,7 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
+#include "esphome.h"
 
 #define __min(a,b) (((a) < (b)) ? (a) : (b))
 #define __max(a,b) (((a) > (b)) ? (a) : (b))
@@ -24,6 +25,7 @@ namespace esphome
             void set_new_setpoint_delai(int value) { this->newSetpointDelai_ms = value*1000;}
             void set_time_to_death(int value) { this->timeToDeath_ms = value*1000;}
             void set_max_setpoint(int value) { this->maxSetpoint = __max(0,__min(100,value)); }
+            void set_control_state(bool value);
 
             void dump_config() override;
             void setup() override;
@@ -31,6 +33,11 @@ namespace esphome
 
             // "state" : value this output should be on, from 0.0 to 1.0
             void write_state(float state) override;
+
+            // get values
+            bool get_enabled_state() { return this->enabledState; }
+            int get_max_setpoint() { return this->maxSetpoint; }
+            int get_current_setpoint() {return enabledState?this->lastSetpointReceived:0;}
 
         protected:
             void set_boiler_id_in_message();
@@ -57,6 +64,8 @@ namespace esphome
             int timeToDeath_ms;
             // Max allowed value for setpoint
             int maxSetpoint;
+            // If false, the boiler setpoint is set to 0
+            bool enabledState;
 
             // Variables
             ///////////////////////////////
