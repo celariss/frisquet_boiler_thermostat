@@ -13,6 +13,7 @@ esp8266:
   #restore_from_flash: True
 
 ota:
+  platform: esphome
   password: !secret ota_password
 
 wifi:
