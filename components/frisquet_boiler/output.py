@@ -3,6 +3,9 @@ import esphome.config_validation as cv
 from esphome import automation
 from esphome import pins
 from esphome.components import output
+from esphome.components import number
+from esphome.components import switch
+from esphome.components import text_sensor
 from esphome.const import CONF_ID, CONF_PIN
 
 CONF_BOILER_ID     = "boiler_id"
@@ -11,6 +14,9 @@ REPEAT_DELAI       = "repeat_delai"
 NEW_SETPOINT_DELAI = "new_setpoint_delai"
 TIME_TO_DEATH      = "time_to_death"
 MAX_SETPOINT       = "max_setpoint"
+STATE_CONTROL      = "state_control"
+FIRMWARE_VERSION   = "firmware_version_sensor"
+FIRMWARE_VERSION_SENSOR = "firmware_version"
 
 frisquet_boiler = cg.esphome_ns.namespace('frisquet_boiler')
 FrisquetBoiler = frisquet_boiler.class_('FrisquetBoiler', output.FloatOutput,cg.Component)
@@ -26,7 +32,10 @@ CONFIG_SCHEMA = output.FLOAT_OUTPUT_SCHEMA.extend({
     cv.Optional(REPEAT_DELAI, 300): cv.int_,
     cv.Optional(NEW_SETPOINT_DELAI, 5): cv.int_,
     cv.Optional(TIME_TO_DEATH, 1200): cv.int_,
-    cv.Optional(MAX_SETPOINT, 100): cv.int_,
+    cv.Optional(MAX_SETPOINT): cv.use_id(number.Number),
+    cv.Optional(STATE_CONTROL): cv.use_id(switch.Switch),
+    cv.Required(FIRMWARE_VERSION): cv.use_id(text_sensor.TextSensor),
+    cv.Required(FIRMWARE_VERSION_SENSOR): cv.string,
 }).extend(cv.COMPONENT_SCHEMA)
 
 async def to_code(config):
@@ -53,4 +62,14 @@ async def to_code(config):
     cg.add(var.set_time_to_death(value))
 
     value = config[MAX_SETPOINT]
-    cg.add(var.set_max_setpoint(value))
+    ref = await cg.get_variable(value)
+    cg.add(var.set_max_setpoint_reference(ref))
+
+    value = config[STATE_CONTROL]
+    ref = await cg.get_variable(value)
+    cg.add(var.set_state_control_reference(ref))
+
+    value = config[FIRMWARE_VERSION]
+    ref = await cg.get_variable(value)
+    cg.add(var.set_firmware_version_reference(ref))
+    cg.add(var.set_firmware_version(config[FIRMWARE_VERSION_SENSOR]))

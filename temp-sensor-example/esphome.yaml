@@ -6,6 +6,10 @@ esp8266:
 
 # Enable logging
 logger:
+  # Set baud_rate to 0 to disable logging
+  #baud_rate: 0
+  # Disable use of flash for logs (to expand HW lifespan)
+  esp8266_store_log_strings_in_flash: false
   level: INFO
 
 # Enable Home Assistant API
@@ -20,6 +24,7 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  use_address: !secret static_ip_address
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
@@ -27,6 +32,11 @@ wifi:
     password: !secret ap_password
 
 captive_portal:
+
+button:
+  # Add a "restart" button in HA device configuration page
+  - platform: restart
+    name: "Reboot device"
 
 # DHT22 sensor configuration entry
 sensor:

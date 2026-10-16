@@ -4,4 +4,4 @@
 /.esphome/
 /secrets.yaml
 save/
-/venv/
+/venv*/

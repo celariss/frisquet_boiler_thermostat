@@ -3,6 +3,7 @@
 #include "esphome/components/output/float_output.h"
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
+#include "esphome/components/switch/switch.h"
 #include "esphome/core/hal.h"
 #include "esphome.h"
 
@@ -17,14 +18,20 @@ namespace esphome
         class FrisquetBoiler : public output::FloatOutput, public Component
         {
         public:
+            // Template components initialization
+            void set_max_setpoint_reference(number::Number *max_setpoint) { this->max_setpoint_ = max_setpoint; }
+            void set_state_control_reference(switch_::Switch *state_control) { this->state_control_ = state_control; }
+            void set_firmware_version_reference(text_sensor::TextSensor *sensor) { this->firmware_version_ = sensor; }
+
             // Configuration methods
+            void set_firmware_version(std::string value) { if (this->firmware_version_ != nullptr) this->firmware_version_->publish_state(value); }
             void set_pin(GPIOPin *pin) { this->boilerOutPIN = pin; }
             void set_boiler_id(const char *str);
             void set_init_delai(int value) { this->initDelai_ms = value*1000;}
             void set_repeat_delai(int value) { this->repeatDelai_ms = value*1000;}
             void set_new_setpoint_delai(int value) { this->newSetpointDelai_ms = value*1000;}
             void set_time_to_death(int value) { this->timeToDeath_ms = value*1000;}
-            void set_max_setpoint(int value) { this->maxSetpoint = __max(0,__min(100,value)); }
+            void set_max_setpoint(int value);
             void set_control_state(bool value);
 
             void dump_config() override;
@@ -46,6 +53,11 @@ namespace esphome
             void sendBitToBoiler(bool bit);
 
         protected:
+            // Template components
+            number::Number *max_setpoint_{nullptr};
+            switch_::Switch *state_control_{nullptr};
+            text_sensor::TextSensor *firmware_version_{nullptr};
+
             // Configuration
             ////////////////////////////
             // Board PIN to use to send frames

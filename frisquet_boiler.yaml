@@ -2,6 +2,7 @@ substitutions:
   device: frisquet-boiler
   name: "Frisquet Boiler"
   prefix: "Frisquet "
+  firmware_version: "1.0.0"
 
 esphome:
   name: ${device}
@@ -52,6 +53,7 @@ switch:
     name: "State Control"
     id: state_control
     restore_mode: RESTORE_DEFAULT_ON
+    optimistic: false
     lambda: |-
       if (id(boiler_output).get_enabled_state()) {
         return true;
@@ -75,10 +77,17 @@ number:
     step: 1
     unit_of_measurement: "%"
     restore_value: true
-    initial_value: 100
+    initial_value: 80
     set_action:
       then:
         - lambda: id(boiler_output).set_max_setpoint(x);
+
+text_sensor:
+  # Max boiler setpoint configuration variable visible in home assistant
+  - platform: template
+    name: "Firmware version"
+    id: firmware_version_sensor
+    icon: mdi:tag
 
 sensor:
   # Declaration of temperature sensor used by our PID climate to regulate boiler temperature
@@ -150,9 +159,12 @@ output:
     # time_to_death: Delai before stopping the boiler, in case no message are received for a long time
     #             unit: second, default: 1200
     time_to_death: 1200
-    # max_setpoint: maximum setpoint value to send to the boiler
+    max_setpoint: max_setpoint
+    # maximum setpoint value to send to the boiler
     #         range: [0, 100], default : 100
-    #max_setpoint: 100
+    state_control: state_control
+    firmware_version: ${firmware_version}
+    firmware_version_sensor: firmware_version_sensor
 
 
 # This PID implementation is given by ESPHome

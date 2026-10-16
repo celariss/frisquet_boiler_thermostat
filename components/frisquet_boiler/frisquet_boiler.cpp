@@ -5,9 +5,6 @@
 #define BOILERMODE_2_STR(mode) (mode == 0 ? "eco" : (mode == 3 ? "comfort" : (mode == 4 ? "frost protection" : "INVALID")))
 #define LOG_TAG "boiler_command"
 
-extern esphome::template_::TemplateNumber *max_setpoint;
-extern esphome::template_::TemplateSwitch *control_state;
-
 namespace esphome
 {
   namespace frisquet_boiler
@@ -31,7 +28,9 @@ namespace esphome
       ESP_LOGCONFIG(LOG_TAG, "  Max period between two messages sent to boiler : %d sec", this->repeatDelai_ms / 1000);
       ESP_LOGCONFIG(LOG_TAG, "  Wait time before a new received setpoint is sent to boiler : %d sec", this->newSetpointDelai_ms / 1000);
       ESP_LOGCONFIG(LOG_TAG, "  In case setpoints are not longer received, delai before stopping the boiler (safety): %d sec", this->timeToDeath_ms / 1000);
-      ESP_LOGCONFIG(LOG_TAG, "  Maximum setpoint value: %d", this->maxSetpoint);
+      ESP_LOGCONFIG(LOG_TAG, "  Initial maximum setpoint value: %d", this->maxSetpoint);
+      ESP_LOGCONFIG(LOG_TAG, "  Initial control state value: %s", this->enabledState ? "ENABLED" : "DISABLED");
+      ESP_LOGCONFIG(LOG_TAG, "  Firmware version: %s", this->firmware_version_->state.c_str());
     }
 
     void FrisquetBoiler::setup()
@@ -54,16 +53,54 @@ namespace esphome
       this->firstMsgSent = false;
       this->bitstuff_counter = 0;
 
-      // Restoring data read from flash
-      this->set_max_setpoint(max_setpoint->state);
-      //this->set_control_state(control_state->state);
+      // Getting initial values from template components
+      // These values can be either initial values indicated in yaml file,
+      // or restored value from previous run (if restore_value: true in yaml file)
+      if (this->max_setpoint_ != nullptr)
+      {
+        int current_value = this->max_setpoint_->state;
+        this->set_max_setpoint(current_value);
+      }
+      if (this->state_control_ != nullptr)
+      {
+        bool current_value = this->state_control_->state;
+        // Switch template type does not give correct initial value :( 
+        //this->set_control_state(current_value);
+      }
+    }
+
+    void FrisquetBoiler::set_max_setpoint(int value)
+    {
+      int value_ = __max(0,__min(100,value));
+      if (this->maxSetpoint != value_)
+      {
+        this->maxSetpoint = value_;
+        ESP_LOGI(LOG_TAG, "New maximum setpoint value: %d", this->maxSetpoint);
+      }
+      else
+        ESP_LOGI(LOG_TAG, "Maximum setpoint value unchanged: %d", this->maxSetpoint);
+      if (value != value_)
+      {
+        ESP_LOGW(LOG_TAG, "Maximum setpoint value must be between 0 and 100; Value has been adjusted to %d", this->maxSetpoint);
+        // Met à jour la valeur du nombre et prévient Home Assistant / ESPHome
+        // ADU : ne fonctionne pas actuellement
+        this->max_setpoint_->publish_state(value_);
+      }
     }
 
     void FrisquetBoiler::set_control_state(bool value)
     {
-      this->enabledState = value;
-      this->lastTimeReceivedSetpoint = 0;
-      this->bReceivedNewSetpoint = true;
+      if (this->enabledState != value)
+      {
+        this->enabledState = value;
+        this->lastTimeReceivedSetpoint = 0;
+        this->bReceivedNewSetpoint = true;
+        ESP_LOGI(LOG_TAG, "New control state value: %s", this->enabledState ? "ENABLED" : "DISABLED");
+      }
+      else
+      {
+        ESP_LOGI(LOG_TAG, "Control state value unchanged: %s", this->enabledState ? "ENABLED" : "DISABLED");
+      }
     }
 
     void FrisquetBoiler::set_boiler_id_in_message()
